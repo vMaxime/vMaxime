@@ -1,6 +1,4 @@
 ### Nice to meet you! 👋
 
-- 🔭 New student of ESGI - Paris 
+- 🔭 Front-end Developer with back skills (I could write Fullstack).
 - 📫 How to reach me: maximeverdonck.pro@gmail.com
-
-I'm currently learning Web development and I want to set up an online business!
