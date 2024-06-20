@@ -1,4 +1,4 @@
 ### Maxime Verdonck
 
-- 🔭 Front-end Developer with back skills (I could write Fullstack).
+- 🛠️ Typescript, React, Django, Node, Tailwind, Docker
 - 📫 maximeverdonck.pro@gmail.com
