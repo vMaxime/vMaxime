@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Le jeu du scorpion 🦂</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --cell: #334155;
+      --cell-hover: #475569;
+      --line: #64748b;
+      --x-color: #f87171;
+      --o-color: #38bdf8;
+      --accent: #a78bfa;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at top, #1e293b, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 24px;
+      text-align: center;
+      font-size: 0.95rem;
+    }
+
+    .status {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      min-height: 1.6em;
+      text-align: center;
+      transition: color .2s;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      background: var(--panel);
+      padding: 14px;
+      border-radius: 18px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.4);
+    }
+
+    .cell {
+      width: clamp(80px, 24vw, 110px);
+      height: clamp(80px, 24vw, 110px);
+      background: var(--cell);
+      border: none;
+      border-radius: 14px;
+      font-size: clamp(2.4rem, 9vw, 3.4rem);
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s, transform .1s;
+      line-height: 1;
+    }
+
+    .cell:hover:not(:disabled) { background: var(--cell-hover); }
+    .cell:active:not(:disabled) { transform: scale(.95); }
+    .cell:disabled { cursor: default; }
+
+    .cell.x { color: var(--x-color); }
+    .cell.o { color: var(--o-color); }
+
+    .cell.win {
+      background: var(--accent);
+      color: #0f172a;
+      animation: pop .3s ease;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(.7); }
+      60% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    .controls {
+      margin-top: 24px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button.reset {
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      padding: 11px 22px;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    button.reset:hover { opacity: .88; }
+    button.reset:active { transform: scale(.96); }
+
+    .scoreboard {
+      margin-top: 22px;
+      display: flex;
+      gap: 28px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .scoreboard span { color: var(--text); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>Le jeu du scorpion 🦂</h1>
+  <p class="subtitle">Placez vos croix et vos ronds chacun votre tour — le premier à en aligner 3 gagne&nbsp;!</p>
+
+  <div class="status" id="status">Au tour des <span style="color:var(--x-color)">croix ✕</span></div>
+
+  <div class="board" id="board"></div>
+
+  <div class="controls">
+    <button class="reset" id="reset">Nouvelle partie</button>
+  </div>
+
+  <div class="scoreboard">
+    <div>Croix ✕ : <span id="score-x">0</span></div>
+    <div>Nuls : <span id="score-draw">0</span></div>
+    <div>Ronds ◯ : <span id="score-o">0</span></div>
+  </div>
+
+  <script>
+    const boardEl = document.getElementById('board');
+    const statusEl = document.getElementById('status');
+    const resetBtn = document.getElementById('reset');
+    const scoreXEl = document.getElementById('score-x');
+    const scoreOEl = document.getElementById('score-o');
+    const scoreDrawEl = document.getElementById('score-draw');
+
+    const WIN_LINES = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8], // lignes
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // colonnes
+      [0, 4, 8], [2, 4, 6]             // diagonales
+    ];
+
+    const MARKS = {
+      X: { symbol: '✕', cls: 'x', label: 'croix ✕', color: 'var(--x-color)' },
+      O: { symbol: '◯', cls: 'o', label: 'ronds ◯', color: 'var(--o-color)' }
+    };
+
+    let board, currentPlayer, gameOver;
+    const scores = { X: 0, O: 0, draw: 0 };
+
+    function init() {
+      board = Array(9).fill(null);
+      currentPlayer = 'X';
+      gameOver = false;
+      boardEl.innerHTML = '';
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('button');
+        cell.className = 'cell';
+        cell.dataset.index = i;
+        cell.addEventListener('click', () => handleMove(i));
+        boardEl.appendChild(cell);
+      }
+      updateStatus();
+    }
+
+    function updateStatus() {
+      const m = MARKS[currentPlayer];
+      statusEl.innerHTML = `Au tour des <span style="color:${m.color}">${m.label}</span>`;
+    }
+
+    function handleMove(i) {
+      if (gameOver || board[i]) return;
+
+      board[i] = currentPlayer;
+      const cell = boardEl.children[i];
+      const m = MARKS[currentPlayer];
+      cell.textContent = m.symbol;
+      cell.classList.add(m.cls);
+      cell.disabled = true;
+
+      const winLine = getWinningLine(currentPlayer);
+      if (winLine) {
+        endGame(winLine);
+        return;
+      }
+
+      if (board.every(Boolean)) {
+        endDraw();
+        return;
+      }
+
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      updateStatus();
+    }
+
+    function getWinningLine(player) {
+      return WIN_LINES.find(line => line.every(idx => board[idx] === player)) || null;
+    }
+
+    function endGame(winLine) {
+      gameOver = true;
+      const m = MARKS[currentPlayer];
+      winLine.forEach(idx => boardEl.children[idx].classList.add('win'));
+      [...boardEl.children].forEach(c => c.disabled = true);
+      statusEl.innerHTML = `🎉 Les <span style="color:${m.color}">${m.label}</span> gagnent&nbsp;!`;
+      scores[currentPlayer]++;
+      renderScores();
+    }
+
+    function endDraw() {
+      gameOver = true;
+      statusEl.textContent = '🤝 Match nul !';
+      scores.draw++;
+      renderScores();
+    }
+
+    function renderScores() {
+      scoreXEl.textContent = scores.X;
+      scoreOEl.textContent = scores.O;
+      scoreDrawEl.textContent = scores.draw;
+    }
+
+    resetBtn.addEventListener('click', init);
+    init();
+  </script>
+</body>
+</html>
